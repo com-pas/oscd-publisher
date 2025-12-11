@@ -12,10 +12,9 @@ import { MdIconButton } from '@scopedelement/material-web/iconbutton/MdIconButto
 import { MdOutlinedButton } from '@scopedelement/material-web/button/MdOutlinedButton.js';
 import { MdCheckbox } from '@scopedelement/material-web/checkbox/MdCheckbox.js';
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { newEditEvent } from '@openenergytools/open-scd-core';
 import { createGSEControl, removeControlBlock } from '@openenergytools/scl-lib';
-
+import { newLogEvent } from '@compas-oscd/core';
 import { pathIdentity, styles } from '../../foundation.js';
 
 import { DataSetElementEditor } from '../dataset/data-set-element-editor.js';
@@ -101,12 +100,50 @@ export class GseControlEditor extends BaseElementEditor {
             icon: 'playlist_add',
             callback: () => {
               const insertGseControl = createGSEControl(ied);
-              if (insertGseControl)
+              if (insertGseControl.length > 0) {
                 this.dispatchEvent(
                   newEditEvent(insertGseControl, {
                     title: 'Create New GSEControl',
                   })
                 );
+              } else {
+                const iedName = ied.getAttribute('name');
+                const ln0 = ied.querySelector('LN0');
+                let reason = 'it has no LN0 element';
+
+                if (ln0) {
+                  const apGOOSE = ied.querySelector(
+                    ':scope > AccessPoint > Services > GOOSE'
+                  );
+                  const iedGOOSE = ied.querySelector(
+                    ':scope > Services > GOOSE'
+                  );
+                  const gooseElement = apGOOSE || iedGOOSE;
+
+                  if (!gooseElement) {
+                    reason = 'Services > GOOSE element is missing';
+                  } else {
+                    const maxGSE = parseInt(
+                      gooseElement.getAttribute('max') ?? '0',
+                      10
+                    );
+                    const existingCount = ied.querySelectorAll(
+                      ':scope > AccessPoint > Server > LDevice > LN0 > GSEControl'
+                    ).length;
+                    const scope = apGOOSE ? 'AccessPoint' : 'IED';
+
+                    reason = `the maximum number of GSEControl elements (${maxGSE}) has been reached for ${scope} (current: ${existingCount})`;
+                  }
+                }
+
+                this.dispatchEvent(
+                  newLogEvent({
+                    title: 'Could not create GSEControl',
+                    kind: 'warning',
+                    message: `Could not create GSEControl for IED ${iedName}: ${reason}.`,
+                  })
+                );
+              }
             },
           },
         ],
