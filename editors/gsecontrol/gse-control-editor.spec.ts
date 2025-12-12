@@ -162,7 +162,7 @@ describe('GSEControl editor component', () => {
       );
     });
 
-    it('creates that the maximum number of GSEControl elements has been reached', () => {
+    it('creates a message that the maximum number of GSEControl elements has been reached', () => {
       const ied = docWithMaxGSEControl.querySelector(
         'IED[name="IED_Max_GSEControl_Reached"]'
       )!;
