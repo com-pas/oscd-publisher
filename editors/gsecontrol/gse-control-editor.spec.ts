@@ -109,7 +109,6 @@ describe('GSEControl editor component', () => {
 
   describe('with missing <Services><GOOSE> element', () => {
     let docWithoutServices: Document;
-    let logEventSpy: SinonSpy;
 
     beforeEach(async () => {
       docWithoutServices = new DOMParser().parseFromString(
@@ -123,8 +122,6 @@ describe('GSEControl editor component', () => {
       );
 
       document.body.prepend(editor);
-      logEventSpy = spy();
-      editor.addEventListener('log', logEventSpy);
     });
 
     it("creates the message 'Services > GOOSE element is missing' when GSEControl element could not be created due to missing <Services><GOOSE> element", () => {
@@ -140,8 +137,16 @@ describe('GSEControl editor component', () => {
     });
 
     it('dispatches log event when GSEControl creation fails', async () => {
-      await sendMouse({ type: 'click', position: [688, 100] });
+      const logEventSpy: SinonSpy = spy();
+      editor.addEventListener('log', logEventSpy);
 
+      await editor.updateComplete;
+      const actionList = editor.shadowRoot?.querySelector('action-list');
+      const addButton = actionList?.shadowRoot?.querySelector(
+        'md-list-item[type="button"]'
+      ) as HTMLElement;
+
+      addButton.click();
       expect(logEventSpy.callCount).to.equal(1);
       expect(logEventSpy.args[0][0].detail.title).to.equal(
         'Could not create GSEControl'
@@ -168,7 +173,7 @@ describe('GSEControl editor component', () => {
       )!;
       const reason = (editor as any).getCreationFailureReason(ied);
       expect(reason).to.equal(
-        'the maximum number of GSEControl elements (1) has been reached for IED (current: 1)'
+        'the maximum number of GSEControl elements (1) has been reached for IED'
       );
     });
   });
