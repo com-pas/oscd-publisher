@@ -80,6 +80,36 @@ export class GseControlEditor extends BaseElementEditor {
     return html``;
   }
 
+  // eslint-disable-next-line class-methods-use-this
+  private getCreationFailureReason(ied: Element): string {
+    const ln0 = ied.querySelector('LN0');
+    if (!ln0) {
+      return 'it has no LN0 element';
+    }
+
+    const apGOOSE = ied.querySelector(
+      ':scope > AccessPoint > Services > GOOSE'
+    );
+    const iedGOOSE = ied.querySelector(':scope > Services > GOOSE');
+    const gooseElement = apGOOSE || iedGOOSE;
+
+    if (!gooseElement) {
+      return 'Services > GOOSE element is missing';
+    }
+
+    const maxGSE = parseInt(gooseElement.getAttribute('max') ?? '0', 10);
+    const existingCount = ied.querySelectorAll(
+      ':scope > AccessPoint > Server > LDevice > LN0 > GSEControl'
+    ).length;
+    const scope = apGOOSE ? 'AccessPoint' : 'IED';
+
+    if (maxGSE <= existingCount) {
+      return `the maximum number of GSEControl elements (${maxGSE}) has been reached for ${scope} (current: ${existingCount})`;
+    }
+
+    return 'an unknown validation error occurred';
+  }
+
   private renderSelectionList(): TemplateResult {
     const items = this.queryIEDs().flatMap(ied => {
       const gseControls = Array.from(
@@ -108,33 +138,7 @@ export class GseControlEditor extends BaseElementEditor {
                 );
               } else {
                 const iedName = ied.getAttribute('name');
-                const ln0 = ied.querySelector('LN0');
-                let reason = 'it has no LN0 element';
-
-                if (ln0) {
-                  const apGOOSE = ied.querySelector(
-                    ':scope > AccessPoint > Services > GOOSE'
-                  );
-                  const iedGOOSE = ied.querySelector(
-                    ':scope > Services > GOOSE'
-                  );
-                  const gooseElement = apGOOSE || iedGOOSE;
-
-                  if (!gooseElement) {
-                    reason = 'Services > GOOSE element is missing';
-                  } else {
-                    const maxGSE = parseInt(
-                      gooseElement.getAttribute('max') ?? '0',
-                      10
-                    );
-                    const existingCount = ied.querySelectorAll(
-                      ':scope > AccessPoint > Server > LDevice > LN0 > GSEControl'
-                    ).length;
-                    const scope = apGOOSE ? 'AccessPoint' : 'IED';
-
-                    reason = `the maximum number of GSEControl elements (${maxGSE}) has been reached for ${scope} (current: ${existingCount})`;
-                  }
-                }
+                const reason = this.getCreationFailureReason(ied);
 
                 this.dispatchEvent(
                   newLogEvent({
