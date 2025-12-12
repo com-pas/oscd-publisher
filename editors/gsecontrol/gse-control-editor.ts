@@ -104,7 +104,7 @@ export class GseControlEditor extends BaseElementEditor {
     const scope = apGOOSE ? 'AccessPoint' : 'IED';
 
     if (maxGSE <= existingCount) {
-      return `the maximum number of GSEControl elements (${maxGSE}) has been reached for ${scope} (current: ${existingCount})`;
+      return `the maximum number of GSEControl elements (${maxGSE}) has been reached for ${scope}`;
     }
 
     return 'an unknown validation error occurred';
