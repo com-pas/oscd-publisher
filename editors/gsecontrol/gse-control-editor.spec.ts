@@ -11,7 +11,11 @@ import {
   isUpdate,
 } from '@openenergytools/scl-lib/dist/foundation/utils.js';
 
-import { gseControlDoc } from './gseControl.testfiles.js';
+import {
+  gseControlDoc,
+  gseControlDocWithoutServices,
+  gseControlWithMaxGSEControl,
+} from './gseControl.testfiles.js';
 
 import { GseControlEditor } from './gse-control-editor.js';
 
@@ -101,5 +105,71 @@ describe('GSEControl editor component', () => {
     const actionList = (el as GseControlEditor).selectionList;
     expect(actionList).to.exist;
     expect(actionList?.searchValue).to.equal('GSE1');
+  });
+
+  describe('with missing <Services><GOOSE> element', () => {
+    let docWithoutServices: Document;
+    let logEventSpy: SinonSpy;
+
+    beforeEach(async () => {
+      docWithoutServices = new DOMParser().parseFromString(
+        gseControlDocWithoutServices,
+        'application/xml'
+      );
+      editor = await fixture(
+        html`<gse-control-editor
+          .doc="${docWithoutServices}"
+        ></gse-control-editor>`
+      );
+
+      document.body.prepend(editor);
+      logEventSpy = spy();
+      editor.addEventListener('log', logEventSpy);
+    });
+
+    it("creates the message 'Services > GOOSE element is missing' when GSEControl element could not be created due to missing <Services><GOOSE> element", () => {
+      const ied = docWithoutServices.querySelector('IED')!;
+      const reason = (editor as any).getCreationFailureReason(ied);
+      expect(reason).to.equal('Services > GOOSE element is missing');
+    });
+
+    it("creates the message 'it has no LN0 element' when GSEControl element could not be created due to missing LN0 element", () => {
+      const ied = docWithoutServices.querySelector('IED[name="IED_No_LN0"]')!;
+      const reason = (editor as any).getCreationFailureReason(ied);
+      expect(reason).to.equal('it has no LN0 element');
+    });
+
+    it('dispatches log event when GSEControl creation fails', async () => {
+      await sendMouse({ type: 'click', position: [688, 100] });
+
+      expect(logEventSpy.callCount).to.equal(1);
+      expect(logEventSpy.args[0][0].detail.title).to.equal(
+        'Could not create GSEControl'
+      );
+      expect(logEventSpy.args[0][0].detail.kind).to.equal('warning');
+      expect(logEventSpy.args[0][0].detail.message).to.include(
+        'Services > GOOSE element is missing'
+      );
+    });
+  });
+
+  describe('with maximum GSEControl elements', () => {
+    let docWithMaxGSEControl: Document;
+    beforeEach(() => {
+      docWithMaxGSEControl = new DOMParser().parseFromString(
+        gseControlWithMaxGSEControl,
+        'application/xml'
+      );
+    });
+
+    it('creates that the maximum number of GSEControl elements has been reached', () => {
+      const ied = docWithMaxGSEControl.querySelector(
+        'IED[name="IED_Max_GSEControl_Reached"]'
+      )!;
+      const reason = (editor as any).getCreationFailureReason(ied);
+      expect(reason).to.equal(
+        'the maximum number of GSEControl elements (1) has been reached for IED (current: 1)'
+      );
+    });
   });
 });
