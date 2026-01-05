@@ -19,6 +19,7 @@ import {
   identity,
   removeControlBlock,
 } from '@openenergytools/scl-lib';
+import { newLogEvent } from '@compas-oscd/core';
 
 import { pathIdentity, styles } from '../../foundation.js';
 
@@ -109,12 +110,32 @@ export class ReportControlEditor extends BaseElementEditor {
               icon: 'playlist_add',
               callback: () => {
                 const insertGseControl = createReportControl(ied);
-                if (insertGseControl)
+                if (insertGseControl) {
                   this.dispatchEvent(
                     newEditEvent(insertGseControl, {
                       title: 'Create New ReportControl',
                     })
                   );
+                } else {
+                  let reason: string = '';
+                  const iedName = ied.getAttribute('name');
+                  const anyLn = ied.querySelector('LN0, LN');
+                  if (!anyLn) {
+                    reason = 'it has no LN0 or LN element';
+                  }
+
+                  this.dispatchEvent(
+                    newLogEvent({
+                      title: 'Could not create ReportControl',
+                      kind: 'warning',
+                      message: `${
+                        reason
+                          ? `Could not create ReportControl for IED ${iedName}: ${reason}.`
+                          : `Could not create ReportControl for IED ${iedName}.`
+                      }`,
+                    })
+                  );
+                }
               },
             },
           ],

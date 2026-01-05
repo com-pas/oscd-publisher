@@ -11,6 +11,7 @@ import {
 import { MdOutlinedButton } from '@scopedelement/material-web/button/MdOutlinedButton.js';
 
 import { newEditEvent } from '@openenergytools/open-scd-core';
+import { newLogEvent } from '@compas-oscd/core';
 import {
   createDataSet,
   identity,
@@ -101,10 +102,28 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
               icon: 'playlist_add',
               callback: () => {
                 const insertDataSet = createDataSet(ied);
-                if (insertDataSet)
+                if (insertDataSet) {
                   this.dispatchEvent(
                     newEditEvent(insertDataSet, { title: `Create New DataSet` })
                   );
+                } else {
+                  const iedName = ied.getAttribute('name');
+                  let reason: string;
+                  const anyLn = ied.querySelector('LN0, LN');
+                  if (!anyLn) {
+                    reason = 'it has no LN0 or LN element';
+                  } else {
+                    reason = 'an unknown validation error occurred';
+                  }
+
+                  this.dispatchEvent(
+                    newLogEvent({
+                      title: 'Could not create DataSet',
+                      message: `The DataSet could not be created in IED '${iedName}' because ${reason}.`,
+                      kind: 'warning',
+                    })
+                  );
+                }
               },
             },
           ],

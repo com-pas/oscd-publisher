@@ -12,10 +12,9 @@ import { MdIconButton } from '@scopedelement/material-web/iconbutton/MdIconButto
 import { MdOutlinedButton } from '@scopedelement/material-web/button/MdOutlinedButton.js';
 import { MdCheckbox } from '@scopedelement/material-web/checkbox/MdCheckbox.js';
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { newEditEvent } from '@openenergytools/open-scd-core';
 import { createGSEControl, removeControlBlock } from '@openenergytools/scl-lib';
-
+import { newLogEvent } from '@compas-oscd/core';
 import { pathIdentity, styles } from '../../foundation.js';
 
 import { DataSetElementEditor } from '../dataset/data-set-element-editor.js';
@@ -81,6 +80,36 @@ export class GseControlEditor extends BaseElementEditor {
     return html``;
   }
 
+  // eslint-disable-next-line class-methods-use-this
+  private getCreationFailureReason(ied: Element): string {
+    const ln0 = ied.querySelector('LN0');
+    if (!ln0) {
+      return 'it has no LN0 element';
+    }
+
+    const apGOOSE = ied.querySelector(
+      ':scope > AccessPoint > Services > GOOSE'
+    );
+    const iedGOOSE = ied.querySelector(':scope > Services > GOOSE');
+    const gooseElement = apGOOSE || iedGOOSE;
+
+    if (!gooseElement) {
+      return 'Services > GOOSE element is missing';
+    }
+
+    const maxGSE = parseInt(gooseElement.getAttribute('max') ?? '0', 10);
+    const existingCount = ied.querySelectorAll(
+      ':scope > AccessPoint > Server > LDevice > LN0 > GSEControl'
+    ).length;
+    const scope = apGOOSE ? 'AccessPoint' : 'IED';
+
+    if (maxGSE <= existingCount) {
+      return `the maximum number of GSEControl elements (${maxGSE}) has been reached for ${scope}`;
+    }
+
+    return 'an unknown validation error occurred';
+  }
+
   private renderSelectionList(): TemplateResult {
     const items = this.queryIEDs().flatMap(ied => {
       const gseControls = Array.from(
@@ -101,12 +130,24 @@ export class GseControlEditor extends BaseElementEditor {
             icon: 'playlist_add',
             callback: () => {
               const insertGseControl = createGSEControl(ied);
-              if (insertGseControl)
+              if (insertGseControl.length > 0) {
                 this.dispatchEvent(
                   newEditEvent(insertGseControl, {
                     title: 'Create New GSEControl',
                   })
                 );
+              } else {
+                const iedName = ied.getAttribute('name');
+                const reason = this.getCreationFailureReason(ied);
+
+                this.dispatchEvent(
+                  newLogEvent({
+                    title: 'Could not create GSEControl',
+                    kind: 'warning',
+                    message: `Could not create GSEControl for IED ${iedName}: ${reason}.`,
+                  })
+                );
+              }
             },
           },
         ],
