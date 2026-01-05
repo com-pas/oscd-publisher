@@ -8665,6 +8665,15 @@ function newEditEvent(edit, options) {
     return newEditEventV1(edit);
 }
 
+function newLogEvent(detail, eventInitDict) {
+    return new CustomEvent('log', {
+        bubbles: true,
+        composed: true,
+        ...eventInitDict,
+        detail: { ...detail, ...eventInitDict === null || eventInitDict === void 0 ? void 0 : eventInitDict.detail },
+    });
+}
+
 /** Utility function to create element with `tagName` and its`attributes` */
 function createElement$1(doc, tag, attrs) {
     const element = doc.createElementNS(doc.documentElement.namespaceURI, tag);
@@ -41221,8 +41230,25 @@ class DataSetEditor extends ScopedElementsMixin(r$4) {
                         icon: 'playlist_add',
                         callback: () => {
                             const insertDataSet = createDataSet(ied);
-                            if (insertDataSet)
+                            if (insertDataSet) {
                                 this.dispatchEvent(newEditEvent(insertDataSet, { title: `Create New DataSet` }));
+                            }
+                            else {
+                                const iedName = ied.getAttribute('name');
+                                let reason;
+                                const anyLn = ied.querySelector('LN0, LN');
+                                if (!anyLn) {
+                                    reason = 'it has no LN0 or LN element';
+                                }
+                                else {
+                                    reason = 'an unknown validation error occurred';
+                                }
+                                this.dispatchEvent(newLogEvent({
+                                    title: 'Could not create DataSet',
+                                    message: `The DataSet could not be created in IED '${iedName}' because ${reason}.`,
+                                    kind: 'warning',
+                                }));
+                            }
                         },
                     },
                 ],
@@ -43965,6 +43991,27 @@ class GseControlEditor extends BaseElementEditor {
       </div>`;
         return x ``;
     }
+    // eslint-disable-next-line class-methods-use-this
+    getCreationFailureReason(ied) {
+        var _a;
+        const ln0 = ied.querySelector('LN0');
+        if (!ln0) {
+            return 'it has no LN0 element';
+        }
+        const apGOOSE = ied.querySelector(':scope > AccessPoint > Services > GOOSE');
+        const iedGOOSE = ied.querySelector(':scope > Services > GOOSE');
+        const gooseElement = apGOOSE || iedGOOSE;
+        if (!gooseElement) {
+            return 'Services > GOOSE element is missing';
+        }
+        const maxGSE = parseInt((_a = gooseElement.getAttribute('max')) !== null && _a !== void 0 ? _a : '0', 10);
+        const existingCount = ied.querySelectorAll(':scope > AccessPoint > Server > LDevice > LN0 > GSEControl').length;
+        const scope = apGOOSE ? 'AccessPoint' : 'IED';
+        if (maxGSE <= existingCount) {
+            return `the maximum number of GSEControl elements (${maxGSE}) has been reached for ${scope}`;
+        }
+        return 'an unknown validation error occurred';
+    }
     renderSelectionList() {
         const items = this.queryIEDs().flatMap(ied => {
             const gseControls = Array.from(ied.querySelectorAll(':scope > AccessPoint > Server > LDevice > LN0 > GSEControl'));
@@ -43978,10 +44025,20 @@ class GseControlEditor extends BaseElementEditor {
                         icon: 'playlist_add',
                         callback: () => {
                             const insertGseControl = createGSEControl(ied);
-                            if (insertGseControl)
+                            if (insertGseControl.length > 0) {
                                 this.dispatchEvent(newEditEvent(insertGseControl, {
                                     title: 'Create New GSEControl',
                                 }));
+                            }
+                            else {
+                                const iedName = ied.getAttribute('name');
+                                const reason = this.getCreationFailureReason(ied);
+                                this.dispatchEvent(newLogEvent({
+                                    title: 'Could not create GSEControl',
+                                    kind: 'warning',
+                                    message: `Could not create GSEControl for IED ${iedName}: ${reason}.`,
+                                }));
+                            }
                         },
                     },
                 ],
@@ -44683,10 +44740,26 @@ class ReportControlEditor extends BaseElementEditor {
                         icon: 'playlist_add',
                         callback: () => {
                             const insertGseControl = createReportControl(ied);
-                            if (insertGseControl)
+                            if (insertGseControl) {
                                 this.dispatchEvent(newEditEvent(insertGseControl, {
                                     title: 'Create New ReportControl',
                                 }));
+                            }
+                            else {
+                                let reason = '';
+                                const iedName = ied.getAttribute('name');
+                                const anyLn = ied.querySelector('LN0, LN');
+                                if (!anyLn) {
+                                    reason = 'it has no LN0 or LN element';
+                                }
+                                this.dispatchEvent(newLogEvent({
+                                    title: 'Could not create ReportControl',
+                                    kind: 'warning',
+                                    message: `${reason
+                                        ? `Could not create ReportControl for IED ${iedName}: ${reason}.`
+                                        : `Could not create ReportControl for IED ${iedName}.`}`,
+                                }));
+                            }
                         },
                     },
                 ],

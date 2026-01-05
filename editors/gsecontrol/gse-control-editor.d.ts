@@ -43,6 +43,7 @@ export declare class GseControlEditor extends BaseElementEditor {
       }
     } */
     protected renderElementEditorContainer(): TemplateResult;
+    private getCreationFailureReason;
     private renderSelectionList;
     private renderToggleButton;
     render(): TemplateResult;
