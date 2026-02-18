@@ -9,6 +9,8 @@ import {
   ActionList,
 } from '@openenergytools/filterable-lists/dist/ActionList.js';
 import { MdOutlinedButton } from '@scopedelement/material-web/button/MdOutlinedButton.js';
+import { MdDialog } from '@scopedelement/material-web/dialog/MdDialog.js';
+import { MdCheckbox } from '@scopedelement/material-web/checkbox/MdCheckbox.js';
 
 import { newEditEvent } from '@openenergytools/open-scd-core';
 import { newLogEvent } from '@compas-oscd/core';
@@ -27,6 +29,8 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
     'action-list': ActionList,
     'data-set-element-editor': DataSetElementEditor,
     'md-outlined-button': MdOutlinedButton,
+    'md-dialog': MdDialog,
+    'md-checkbox': MdCheckbox,
   };
 
   /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
@@ -49,7 +53,17 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
   @query('data-set-element-editor')
   dataSetElementEditor!: DataSetElementEditor;
 
-  /** Resets selected DataSet, if not existing in new doc 
+  @state()
+  private dataSetCopyOptions: {
+    ied: Element;
+    dataSet: Element;
+    status: string;
+    selected: boolean;
+  }[] = [];
+
+  @query('.dialog.copy') copyDataSetDialog!: MdDialog;
+
+  /** Resets selected DataSet, if not existing in new doc
   update(props: Map<string | number | symbol, unknown>): void {
     if (props.has('doc') && this.selectedDataSet) {
       const newDataSet = updateElementReference(this.doc, this.selectedDataSet);
@@ -58,7 +72,7 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
 
       /* TODO(Jakob Vogelsang): fix when action-list is activable
       if (!newDataSet && this.selectionList && this.selectionList.selected)
-        (this.selectionList.selected as ListItem).selected = false; 
+        (this.selectionList.selected as ListItem).selected = false;
     }
 
     super.update(props);
@@ -81,6 +95,127 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
       </div>`;
 
     return html``;
+  }
+
+  private async openCopyDialog(dataSet: Element): Promise<void> {
+    const currentIED = dataSet.closest('IED');
+    const otherIEDs = Array.from(
+      this.doc.querySelectorAll(':root > IED')
+    ).filter(ied => ied !== currentIED);
+
+    this.dataSetCopyOptions = otherIEDs.map(ied => {
+      const ln0 = ied.querySelector('LN0');
+      const exists =
+        ln0 &&
+        ln0.querySelector(`DataSet[name="${dataSet.getAttribute('name')}"]`);
+      let status = 'CanCopy';
+      if (!ln0) status = 'IEDStructureIncompatible';
+      else if (exists) status = 'DataSetAlreadyExists';
+      return {
+        ied,
+        dataSet,
+        status,
+        selected: status === 'CanCopy',
+      };
+    });
+    await this.updateComplete;
+    if (this.copyDataSetDialog) this.copyDataSetDialog.open = true;
+  }
+
+  private copyDataSet(): void {
+    const selectedOptions = this.dataSetCopyOptions.filter(
+      o => o.selected && o.status === 'CanCopy'
+    );
+    if (selectedOptions.length === 0) {
+      if (this.copyDataSetDialog) this.copyDataSetDialog.open = false;
+      return;
+    }
+    const inserts = selectedOptions
+      .map(o => {
+        const ln0 = o.ied.querySelector('LN0');
+        if (!ln0) return undefined;
+        const dataSetCopy = o.dataSet.cloneNode(true) as Element;
+        return {
+          parent: ln0,
+          node: dataSetCopy,
+          reference: null,
+        };
+      })
+      .filter(
+        (i): i is { parent: Element; node: Element; reference: null } => !!i
+      );
+    this.dispatchEvent(
+      newEditEvent(inserts, {
+        title: `Copy DataSet to ${selectedOptions.length} IEDs`,
+      })
+    );
+    if (this.copyDataSetDialog) this.copyDataSetDialog.open = false;
+  }
+
+  private renderCopyDataSetDialog(): TemplateResult {
+    const getStatusText = (status: string) => {
+      if (status === 'CanCopy') return 'Copy possible';
+      if (status === 'IEDStructureIncompatible')
+        return 'IED structure incompatible';
+      if (status === 'DataSetAlreadyExists') return 'DataSet already exists';
+      return '';
+    };
+    return html`<md-dialog class="dialog copy">
+      <div slot="content" class="copy-option-list">
+        ${this.dataSetCopyOptions.map(
+          option => html`
+            <label class="copy-optin-row">
+              <div class="copy-option-description">
+                <div class="copy-option-description-ied">
+                  ${option.ied.getAttribute('name')}
+                </div>
+                <div class="copy-option-description-status">
+                  ${getStatusText(option.status)}
+                </div>
+              </div>
+              <md-checkbox
+                ?checked=${option.selected}
+                @change=${() => this.toggleCopyOption(option)}
+                ?disabled=${option.status !== 'CanCopy'}
+              ></md-checkbox>
+            </label>
+          `
+        )}
+        <div class="copy-button">
+          <md-outlined-button
+            @click=${() => {
+              if (this.copyDataSetDialog) this.copyDataSetDialog.open = false;
+            }}
+            >Close</md-outlined-button
+          >
+          <md-outlined-button
+            @click=${this.copyDataSet}
+            ?disabled=${!this.dataSetCopyOptions.some(
+              o => o.selected && o.status === 'CanCopy'
+            )}
+            >Copy</md-outlined-button
+          >
+        </div>
+      </div>
+    </md-dialog>`;
+  }
+
+  private toggleCopyOption(option: {
+    ied: Element;
+    dataSet: Element;
+    status: string;
+    selected: boolean;
+  }): void {
+    const idx = this.dataSetCopyOptions.indexOf(option);
+    if (idx !== -1) {
+      const updated = { ...option, selected: !option.selected };
+      this.dataSetCopyOptions = [
+        ...this.dataSetCopyOptions.slice(0, idx),
+        updated,
+        ...this.dataSetCopyOptions.slice(idx + 1),
+      ];
+    }
+    this.requestUpdate();
   }
 
   private renderSelectionList(): TemplateResult {
@@ -155,6 +290,12 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
                 this.selectedDataSet = undefined;
               },
             },
+            {
+              icon: 'content_copy',
+              callback: () => {
+                this.openCopyDialog(dataSet);
+              },
+            },
           ],
         }));
 
@@ -186,7 +327,7 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
 
     return html`${this.renderToggleButton()}
       <div class="section">
-        ${this.renderSelectionList()}${this.renderElementEditorContainer()}
+        ${this.renderSelectionList()}${this.renderElementEditorContainer()}${this.renderCopyDataSetDialog()}
       </div>`;
   }
 
@@ -199,6 +340,42 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
 
     md-icon-button[icon='playlist_add'] {
       pointer-events: all;
+    }
+
+    mwc-list-item {
+      --mdc-list-item-meta-size: 48px;
+    }
+
+    data-set-element-editor {
+      grid-column: 1 / 2;
+    }
+
+    .copy-option-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .copy-button {
+      align-self: flex-end;
+    }
+
+    .copy-optin-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .copy-option-description {
+      min-width: 240px;
+    }
+
+    .copy-option-description-ied {
+      font-weight: bold;
+    }
+
+    .copy-option-description-status {
+      font-size: 0.8em;
     }
   `;
 }
