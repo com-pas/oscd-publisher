@@ -23,6 +23,7 @@ import {
 import { DataSetElementEditor } from './data-set-element-editor.js';
 
 import { pathIdentity, styles } from '../../foundation.js';
+import { queryLDevice, queryLN } from '../../foundation/utils/xml.js';
 
 export class DataSetEditor extends ScopedElementsMixin(LitElement) {
   static scopedElements = {
@@ -123,21 +124,41 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
   }
 
   private copyDataSet(): void {
-    const selectedOptions = this.dataSetCopyOptions.filter(
-      o => o.selected && o.status === 'CanCopy'
-    );
+    const selectedOptions = this.dataSetCopyOptions.filter(o => o.selected);
     if (selectedOptions.length === 0) {
       if (this.copyDataSetDialog) this.copyDataSetDialog.open = false;
       return;
     }
+
     const inserts = selectedOptions
       .map(o => {
-        const ln0 = o.ied.querySelector('LN0');
-        if (!ln0) return undefined;
-        const dataSetCopy = o.dataSet.cloneNode(true) as Element;
+        // current ldevice
+        const lDevice = o.dataSet.closest('LDevice');
+        const lnOrLn0 = o.dataSet.closest('LN0, LN');
+
+        if (!lnOrLn0 || !lDevice) {
+          throw new Error(
+            'ControlBlock must be a child of LN or LN0 and LDevice'
+          );
+        }
+
+        // get location where to insert copy
+        const ldInst = lDevice?.getAttribute('inst') ?? '';
+        const lDeviceInIed = queryLDevice(o.ied, ldInst);
+
+        if (!lDeviceInIed) {
+          return null;
+        }
+
+        const lnClass = lnOrLn0.getAttribute('lnClass') ?? '';
+        const inst = lnOrLn0.getAttribute('inst') ?? '';
+        const prefix = lnOrLn0.getAttribute('prefix');
+
+        const insertLN = queryLN(lDeviceInIed, lnClass, inst, prefix);
+
         return {
-          parent: ln0,
-          node: dataSetCopy,
+          parent: insertLN,
+          node: o.dataSet.cloneNode(true) as Element,
           reference: null,
         };
       })
