@@ -300,6 +300,12 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
           },
           actions: [
             {
+              icon: 'content_copy',
+              callback: () => {
+                this.openCopyDialog(dataSet);
+              },
+            },
+            {
               icon: 'delete',
               callback: () => {
                 this.dispatchEvent(
@@ -309,12 +315,6 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
                 );
 
                 this.selectedDataSet = undefined;
-              },
-            },
-            {
-              icon: 'content_copy',
-              callback: () => {
-                this.openCopyDialog(dataSet);
               },
             },
           ],
