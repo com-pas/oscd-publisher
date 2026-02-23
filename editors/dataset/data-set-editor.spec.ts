@@ -63,4 +63,35 @@ describe('DataSet editor component', () => {
     expect(actionList).to.exist;
     expect(actionList.searchValue).to.equal('IED1');
   });
+
+  it('opens copy dialog and disables copy if no IEDs available', async () => {
+    const el = await fixture(
+      html`<data-set-editor .doc="${doc}"></data-set-editor>`
+    );
+    await (el as DataSetEditor).updateComplete;
+
+    // Simulate selecting a DataSet to show actions
+    const actionList = (el as DataSetEditor).selectionList;
+    // Find a DataSet item with a copy action
+    const dataSetItem = actionList.items.find(
+      item => item.actions && item.actions.some(a => a.icon === 'content_copy')
+    );
+    expect(dataSetItem).to.exist;
+    if (!dataSetItem || !dataSetItem.actions) return;
+    // Call the copy action callback
+    const copyAction = dataSetItem.actions.find(a => a.icon === 'content_copy');
+    expect(copyAction).to.exist;
+    if (!copyAction) return;
+    copyAction.callback();
+    await (el as DataSetEditor).updateComplete;
+
+    // The dialog should now be open
+    const dialog = (el as DataSetEditor).copyDataSetDialog;
+    expect(dialog).to.exist;
+    expect(dialog.open).to.be.true;
+
+    // The copy button should be present and disabled if no IEDs available
+    const copyButton = dialog.querySelector('md-outlined-button[disabled]');
+    expect(copyButton).to.exist;
+  });
 });

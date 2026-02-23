@@ -1,5 +1,6 @@
+/* eslint-disable no-unused-expressions */
 /* eslint-disable import/no-extraneous-dependencies */
-import { fixture, html } from '@open-wc/testing';
+import { fixture, html, expect } from '@open-wc/testing';
 
 import { sendKeys, sendMouse, setViewport } from '@web/test-runner-commands';
 
@@ -138,6 +139,50 @@ describe('DataSet editor component', () => {
         await visualDiff(
           editor,
           `dataset/data-set-editor/#7 Selection List 599x1100`
+        );
+      });
+
+      it('shows copy dialog for DataSet and matches snapshot', async () => {
+        await setViewport({ width: 599, height: 1100 });
+
+        // Open selection list
+        editor.selectDataSetButton.click();
+        await editor.updateComplete;
+        await timeout(200);
+
+        const actionList = editor.selectionList;
+        expect(actionList).to.exist;
+        expect(actionList.items?.length).to.be.greaterThan(0);
+
+        // Find item containing copy action
+        const dataSetItem = actionList.items.find(item =>
+          item.actions?.some(a => a.icon === 'content_copy')
+        );
+
+        expect(
+          dataSetItem,
+          'Expected at least one DataSet with a content_copy action'
+        ).to.exist;
+
+        const copyAction = dataSetItem!.actions!.find(
+          a => a.icon === 'content_copy'
+        );
+
+        expect(copyAction, 'content_copy action should exist').to.exist;
+        expect(
+          copyAction!.callback,
+          'content_copy callback should be defined'
+        ).to.be.a('function');
+
+        // Trigger dialog
+        copyAction!.callback();
+
+        await editor.updateComplete;
+        await timeout(200);
+
+        await visualDiff(
+          editor,
+          `dataset/data-set-editor/#copy-dialog-DataSet-599x1100`
         );
       });
 
