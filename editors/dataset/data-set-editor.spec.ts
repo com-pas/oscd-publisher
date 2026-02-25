@@ -30,7 +30,7 @@ describe('DataSet editor component', () => {
   });
 
   it('allows to add a new empty DataSet element', async () => {
-    await sendMouse({ type: 'click', position: [760, 100] });
+    await sendMouse({ type: 'click', position: [688, 100] });
 
     expect(editEvent).to.have.been.calledOnce;
 
