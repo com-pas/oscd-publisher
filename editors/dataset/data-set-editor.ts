@@ -119,14 +119,13 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
         selected: status === 'CanCopy',
       };
     });
-    await this.updateComplete;
-    if (this.copyDataSetDialog) this.copyDataSetDialog.open = true;
+    this.copyDataSetDialog.show();
   }
 
   private copyDataSet(): void {
     const selectedOptions = this.dataSetCopyOptions.filter(o => o.selected);
     if (selectedOptions.length === 0) {
-      if (this.copyDataSetDialog) this.copyDataSetDialog.open = false;
+      this.copyDataSetDialog.close();
       return;
     }
 
@@ -170,7 +169,7 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
         title: `Copy DataSet to ${selectedOptions.length} IEDs`,
       })
     );
-    if (this.copyDataSetDialog) this.copyDataSetDialog.open = false;
+    this.copyDataSetDialog.close();
   }
 
   private renderCopyDataSetDialog(): TemplateResult {
@@ -205,7 +204,7 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
         <div class="copy-button">
           <md-outlined-button
             @click=${() => {
-              if (this.copyDataSetDialog) this.copyDataSetDialog.open = false;
+              this.copyDataSetDialog.close();
             }}
             >Close</md-outlined-button
           >
@@ -300,7 +299,7 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
           },
           actions: [
             {
-              icon: 'content_copy',
+              icon: 'folder_copy',
               callback: () => {
                 this.openCopyDialog(dataSet);
               },

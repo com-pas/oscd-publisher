@@ -156,22 +156,22 @@ describe('DataSet editor component', () => {
 
         // Find item containing copy action
         const dataSetItem = actionList.items.find(item =>
-          item.actions?.some(a => a.icon === 'content_copy')
+          item.actions?.some(a => a.icon === 'folder_copy')
         );
 
         expect(
           dataSetItem,
-          'Expected at least one DataSet with a content_copy action'
+          'Expected at least one DataSet with a folder_copy action'
         ).to.exist;
 
         const copyAction = dataSetItem!.actions!.find(
-          a => a.icon === 'content_copy'
+          a => a.icon === 'folder_copy'
         );
 
-        expect(copyAction, 'content_copy action should exist').to.exist;
+        expect(copyAction, 'folder_copy action should exist').to.exist;
         expect(
           copyAction!.callback,
-          'content_copy callback should be defined'
+          'folder_copy callback should be defined'
         ).to.be.a('function');
 
         // Trigger dialog
@@ -182,7 +182,7 @@ describe('DataSet editor component', () => {
 
         await visualDiff(
           editor,
-          `dataset/data-set-editor/#copy-dialog-DataSet-599x1100`
+          `dataset/data-set-editor/#9 Copy Dialog DataSet 599x1100`
         );
       });
 
