@@ -124,7 +124,6 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
               icon: 'playlist_add',
               callback: () => {
                 this.selectedIed = ied;
-                // this.lDeviceSelectDialog?.show()
                 const lDevices = ied.querySelectorAll(
                   ':scope > AccessPoint > Server > LDevice'
                 );
