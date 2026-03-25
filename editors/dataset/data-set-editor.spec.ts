@@ -21,16 +21,51 @@ const doc = new DOMParser().parseFromString(dataSetDoc, 'application/xml');
 
 describe('DataSet editor component', () => {
   let editEvent: SinonSpy;
+  let editor: DataSetEditor;
 
   beforeEach(async () => {
-    await fixture(html`<data-set-editor .doc="${doc}"></data-set-editor>`);
+    editor = await fixture(
+      html`<data-set-editor .doc="${doc}"></data-set-editor>`
+    );
 
     editEvent = spy();
     window.addEventListener('oscd-edit-v2', editEvent);
   });
 
-  it('allows to add a new empty DataSet element', async () => {
-    await sendMouse({ type: 'click', position: [760, 100] });
+  it('allows to add a new empty DataSet element to a selected LDevice if multiple LDevices are available', async () => {
+    // should open LDevice select dialog
+    const addDataSetListItem = editor.shadowRoot
+      ?.querySelector('action-list')
+      ?.shadowRoot?.querySelector('md-list:nth-child(2)')
+      ?.querySelector('md-list-item') as HTMLElement;
+    expect(addDataSetListItem).to.exist;
+    addDataSetListItem.click();
+
+    await editor.updateComplete;
+    await Promise.resolve();
+
+    // get the dialog
+    const dialog = editor.lDeviceSelectDialog;
+
+    // get the second lDevice radio button
+    const radio = dialog
+      .querySelector('md-list')
+      ?.querySelector('md-list-item:nth-child(2)')!
+      .querySelector('md-radio') as HTMLElement;
+
+    // select second lDevice as target
+    radio.click();
+    await editor.updateComplete;
+    await Promise.resolve();
+
+    // click the "Select" button
+    const selectBtn = dialog.querySelector(
+      'md-text-button.do.picker.save'
+    ) as HTMLElement;
+    selectBtn.click();
+
+    await editor.updateComplete;
+    await Promise.resolve();
 
     expect(editEvent).to.have.been.calledOnce;
 
@@ -61,6 +96,7 @@ describe('DataSet editor component', () => {
 
     const actionList = (el as DataSetEditor).selectionList;
     expect(actionList).to.exist;
+    actionList.items;
     expect(actionList.searchValue).to.equal('IED1');
   });
 });
