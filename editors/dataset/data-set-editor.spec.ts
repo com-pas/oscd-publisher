@@ -32,6 +32,46 @@ describe('DataSet editor component', () => {
     window.addEventListener('oscd-edit-v2', editEvent);
   });
 
+  it('allows to add a new empty DataSet element directly if only one LDevice is available', async () => {
+    // Prepare document to have IED with only one LDevice
+    const copyDoc = doc.cloneNode(true) as XMLDocument;
+    const ied = copyDoc.querySelector('IED[name="IED"]')!;
+
+    const lDevices = ied.querySelectorAll(
+      ':scope > AccessPoint > Server > LDevice'
+    );
+    lDevices.forEach(ld => {
+      if (ld.getAttribute('inst') !== 'ldInst1') {
+        ld.remove();
+      }
+    });
+
+    editor = await fixture(
+      html`<data-set-editor .doc="${copyDoc}"></data-set-editor>`
+    );
+
+    // should add new DataSet element to the only available LDevice without opening the LDevice select dialog
+    const addDataSetListItem = editor.shadowRoot
+      ?.querySelector('action-list')
+      ?.shadowRoot?.querySelector('md-list:nth-child(2)')
+      ?.querySelector('md-list-item') as HTMLElement;
+    expect(addDataSetListItem).to.exist;
+    addDataSetListItem.click();
+
+    await editor.updateComplete;
+    await Promise.resolve();
+
+    expect(editEvent).to.have.been.calledOnce;
+
+    const insert = editEvent.args[0][0].detail.edit;
+
+    expect(insert).to.satisfy(isInsert);
+    expect(insert.parent.tagName).to.equal('LN0');
+    expect(insert.node.tagName).to.equal('DataSet');
+    expect(insert.node.getAttribute('name')).to.equal('newDataSet_001');
+    expect(insert.node.children.length).to.equal(0);
+  });
+
   it('allows to add a new empty DataSet element to a selected LDevice if multiple LDevices are available', async () => {
     // should open LDevice select dialog
     const addDataSetListItem = editor.shadowRoot
