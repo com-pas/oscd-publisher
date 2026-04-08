@@ -227,14 +227,15 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
   }
 
   private renderLDeviceSelectDialog(): TemplateResult {
-    return html`
-    <md-dialog id="ldevice-select">
+    return html` <md-dialog id="ldevice-select">
       <div slot="headline">Select LDevice</div>
 
-        <div slot="content">
-          <p style="color: var(--mdc-theme-on-surface, #333); font-size: 0.95em;">Choose the LDevice to which the new DataSet will be added.</p>
-          <form>
-            <md-list role="radiogroup">
+      <div slot="content">
+        <p style="color: var(--mdc-theme-on-surface, #333); font-size: 0.95em;">
+          Choose the LDevice to which the new DataSet will be added.
+        </p>
+        <form>
+          <md-list role="radiogroup">
             ${this.lDevices.map(
               (ld, i) => html`
                 <md-list-item>
@@ -250,19 +251,22 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
                 </md-list-item>
               `
             )}
-          </form>
-        </div>
+          </md-list>
+        </form>
+      </div>
 
-        <div slot="actions">
-          <md-text-button
-            @click=${() => this.lDeviceSelectDialog?.close()}
-          >Close</md-text-button>
-          <md-text-button 
-            class="do picker save"
-            @click=${() => this.handleLDeviceSelect()}
-          >Select<md-icon slot="icon">check</md-icon></md-text-button>
-        </div>
-      </md-dialog>`;
+      <div slot="actions">
+        <md-text-button @click=${() => this.lDeviceSelectDialog?.close()}
+          >Close</md-text-button
+        >
+        <md-text-button
+          class="do picker save"
+          ?disabled=${!this.selectedLDevice}
+          @click=${() => this.handleLDeviceSelect()}
+          >Select<md-icon slot="icon">check</md-icon></md-text-button
+        >
+      </div>
+    </md-dialog>`;
   }
 
   private selectLDevice(ld: Element | null): void {
