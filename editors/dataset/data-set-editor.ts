@@ -129,6 +129,15 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
                 );
                 if (lDevices.length === 0) {
                   // LDevice does not exist, cannot create DataSet
+                  const iedName = ied.getAttribute('name');
+                  const reason = 'it has no LDevice element';
+                  this.dispatchEvent(
+                    newLogEvent({
+                      title: 'Could not create DataSet',
+                      message: `The DataSet could not be created in IED '${iedName}' because ${reason}.`,
+                      kind: 'warning',
+                    })
+                  );
                 } else if (lDevices.length === 1) {
                   // only one LDevice, create DataSet directly
                   const selectedLDevice = lDevices[0];
