@@ -305,18 +305,19 @@ export class DataSetElementEditor extends ScopedElementsMixin(LitElement) {
         icon="playlist_add"
         ?disabled=${!canAddFCDA(this.element!)}
         @click=${() => this.doPickerDialog?.show()}
-      >Add data object<md-icon slot="icon">playlist_add</me-icon></md-text-button
+        >Add data object<md-icon slot="icon"
+          >playlist_add</md-icon
+        ></md-text-button
       ><md-dialog id="dopicker">
         <div slot="headline">Add Data Objects</div>
         <tree-grid slot="content" .tree=${dataObjectTree(server)}></tree-grid>
         <div slot="actions">
-          <md-text-button
-            @click=${() => this.doPickerDialog?.close()}
-          >Close</md-text-button>
-          <md-text-button 
-            class="do picker save"
-            @click=${this.saveDataObjects}
-          >Save<md-icon slot="icon">save</md-icon></md-text-button>
+          <md-text-button @click=${() => this.doPickerDialog?.close()}
+            >Close</md-text-button
+          >
+          <md-text-button class="do picker save" @click=${this.saveDataObjects}
+            >Save<md-icon slot="icon">save</md-icon></md-text-button
+          >
         </div>
       </md-dialog>`;
   }
