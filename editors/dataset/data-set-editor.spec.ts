@@ -11,7 +11,7 @@ import {
   isRemove,
 } from '@openenergytools/scl-lib/dist/foundation/utils.js';
 
-import { dataSetDoc } from './data-set-editor.testfiles.js';
+import { dataSetDoc, dataSetCopyDoc } from './data-set-editor.testfiles.js';
 
 import { DataSetEditor } from './data-set-editor.js';
 
@@ -138,5 +138,126 @@ describe('DataSet editor component', () => {
     expect(actionList).to.exist;
     actionList.items;
     expect(actionList.searchValue).to.equal('IED1');
+  });
+});
+
+describe('DataSet copy', () => {
+  const copyDoc = new DOMParser().parseFromString(
+    dataSetCopyDoc,
+    'application/xml'
+  );
+
+  let editor: DataSetEditor;
+  let editEvent: SinonSpy;
+
+  beforeEach(async () => {
+    editor = await fixture(
+      html`<data-set-editor .doc="${copyDoc}"></data-set-editor>`
+    );
+    editEvent = spy();
+    window.addEventListener('oscd-edit-v2', editEvent);
+  });
+
+  afterEach(() => {
+    window.removeEventListener('oscd-edit-v2', editEvent);
+  });
+
+  it('determines CanCopy status when target IED has matching structure and no conflict', () => {
+    const dataSet = copyDoc.querySelector(
+      'IED[name="IED"] DataSet[name="datSet"]'
+    )!;
+    const ied2 = copyDoc.querySelector('IED[name="IED2"]')!;
+
+    const status = (editor as any).getDataSetCopyStatus(dataSet, ied2);
+    expect(status).to.equal('CanCopy');
+  });
+
+  it('determines DataSetAlreadyExists when target IED has a DataSet with the same name', () => {
+    const dataSet = copyDoc.querySelector(
+      'IED[name="IED"] DataSet[name="datSet"]'
+    )!;
+    const ied3 = copyDoc.querySelector('IED[name="IED3"]')!;
+
+    const status = (editor as any).getDataSetCopyStatus(dataSet, ied3);
+    expect(status).to.equal('DataSetAlreadyExists');
+  });
+
+  it('determines IEDStructureIncompatible when target IED has no matching LDevice', () => {
+    const dataSet = copyDoc.querySelector(
+      'IED[name="IED"] DataSet[name="datSet"]'
+    )!;
+    const ied4 = copyDoc.querySelector('IED[name="IED4"]')!;
+
+    const status = (editor as any).getDataSetCopyStatus(dataSet, ied4);
+    expect(status).to.equal('IEDStructureIncompatible');
+  });
+
+  it('pre-selects only CanCopy IEDs when copy dialog is opened', async () => {
+    const dataSet = copyDoc.querySelector(
+      'IED[name="IED"] DataSet[name="datSet"]'
+    )!;
+
+    // Simulate the folder_copy callback by setting copy options directly
+    editor.dataSetCopyOptions = ['IED2', 'IED3', 'IED4'].map(name => {
+      const ied = copyDoc.querySelector(`IED[name="${name}"]`)!;
+      const status = (editor as any).getDataSetCopyStatus(dataSet, ied);
+      return { ied, dataSet, status, selected: status === 'CanCopy' };
+    });
+    await editor.updateComplete;
+
+    const ied2Option = editor.dataSetCopyOptions.find(
+      o => o.ied.getAttribute('name') === 'IED2'
+    );
+    const ied3Option = editor.dataSetCopyOptions.find(
+      o => o.ied.getAttribute('name') === 'IED3'
+    );
+    const ied4Option = editor.dataSetCopyOptions.find(
+      o => o.ied.getAttribute('name') === 'IED4'
+    );
+
+    expect(ied2Option?.selected).to.be.true;
+    expect(ied3Option?.selected).to.be.false;
+    expect(ied4Option?.selected).to.be.false;
+  });
+
+  it('dispatches an insert edit event for each selected IED when copying', async () => {
+    const dataSet = copyDoc.querySelector(
+      'IED[name="IED"] DataSet[name="datSet"]'
+    )!;
+    const ied2 = copyDoc.querySelector('IED[name="IED2"]')!;
+
+    // Set up copy options with IED2 selected (CanCopy)
+    editor.dataSetCopyOptions = [
+      { ied: ied2, dataSet, status: 'CanCopy' as any, selected: true },
+    ];
+    await editor.updateComplete;
+
+    (editor as any).copyDataSet();
+
+    expect(editEvent).to.have.been.calledOnce;
+
+    const edits = editEvent.args[0][0].detail.edit;
+    expect(edits).to.be.an('array').with.lengthOf(1);
+    expect(edits[0]).to.satisfy(isInsert);
+    expect(edits[0].parent.tagName).to.equal('LN0');
+    expect(edits[0].node.tagName).to.equal('DataSet');
+    expect(edits[0].node.getAttribute('name')).to.equal('datSet');
+  });
+
+  it('does not dispatch an edit event when no IED is selected', async () => {
+    const dataSet = copyDoc.querySelector(
+      'IED[name="IED"] DataSet[name="datSet"]'
+    )!;
+    const ied2 = copyDoc.querySelector('IED[name="IED2"]')!;
+
+    // All options deselected
+    editor.dataSetCopyOptions = [
+      { ied: ied2, dataSet, status: 'CanCopy' as any, selected: false },
+    ];
+    await editor.updateComplete;
+
+    (editor as any).copyDataSet();
+
+    expect(editEvent).to.not.have.been.called;
   });
 });

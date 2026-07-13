@@ -349,3 +349,89 @@ export const dataSetDocWithDescs = `
     </DataTypeTemplates>
 </SCL>
 `;
+
+/**
+ * Document for testing DataSet copy functionality.
+ *
+ * IED  — source; has "datSet" in ldInst1/LN0 with FCDA pointing to MMXU LN (lnInst="1")
+ * IED2 — CanCopy: matching ldInst1/LN0, same MMXU LN, no conflicting DataSet
+ * IED3 — DataSetAlreadyExists: matching ldInst1/LN0 that already contains "datSet"
+ * IED4 — IEDStructureIncompatible: no ldInst1 LDevice at all
+ */
+export const dataSetCopyDoc = `
+<SCL>
+    <IED name="IED">
+        <AccessPoint name="AP1">
+            <Server>
+                <LDevice inst="ldInst1">
+                    <LN0 lnClass="LLN0" inst="" lnType="LLN0">
+                        <DataSet name="datSet">
+                            <FCDA ldInst="ldInst1" prefix="prefix" lnClass="MMXU" lnInst="1" doName="PhV.phsA" daName="cVal.mag.f" fc="MX" />
+                        </DataSet>
+                    </LN0>
+                    <LN prefix="prefix" lnClass="MMXU" inst="1" lnType="MMXU" />
+                </LDevice>
+            </Server>
+        </AccessPoint>
+    </IED>
+    <IED name="IED2">
+        <AccessPoint name="AP1">
+            <Server>
+                <LDevice inst="ldInst1">
+                    <LN0 lnClass="LLN0" inst="" lnType="LLN0">
+                    </LN0>
+                    <LN prefix="prefix" lnClass="MMXU" inst="1" lnType="MMXU" />
+                </LDevice>
+            </Server>
+        </AccessPoint>
+    </IED>
+    <IED name="IED3">
+        <AccessPoint name="AP1">
+            <Server>
+                <LDevice inst="ldInst1">
+                    <LN0 lnClass="LLN0" inst="" lnType="LLN0">
+                        <DataSet name="datSet">
+                            <FCDA ldInst="ldInst1" prefix="prefix" lnClass="MMXU" lnInst="1" doName="PhV.phsA" daName="cVal.mag.f" fc="MX" />
+                        </DataSet>
+                    </LN0>
+                    <LN prefix="prefix" lnClass="MMXU" inst="1" lnType="MMXU" />
+                </LDevice>
+            </Server>
+        </AccessPoint>
+    </IED>
+    <IED name="IED4">
+        <AccessPoint name="AP1">
+            <Server>
+                <LDevice inst="differentLDevice">
+                    <LN0 lnClass="LLN0" inst="" lnType="LLN0">
+                    </LN0>
+                </LDevice>
+            </Server>
+        </AccessPoint>
+    </IED>
+    <DataTypeTemplates>
+        <LNodeType lnClass="LLN0" id="LLN0">
+            <DO name="Beh" type="ENS"/>
+        </LNodeType>
+        <LNodeType lnClass="MMXU" id="MMXU">
+            <DO name="PhV" type="WYE"/>
+        </LNodeType>
+        <DOType cdc="ENS" id="ENS">
+            <DA name="stVal" bType="Enum" fc="ST" />
+        </DOType>
+        <DOType cdc="WYE" id="WYE">
+            <SDO name="phsA" type="CMV" />
+        </DOType>
+        <DOType cdc="CMV" id="CMV">
+            <DA name="cVal" bType="Struct" type="Vector" fc="MX"/>
+            <DA name="q" bType="Quality" fc="MX" />
+        </DOType>
+        <DAType id="Vector">
+            <BDA name="mag" bType="Struct" type="AnalogueValue" />
+        </DAType>
+        <DAType id="AnalogueValue">
+            <BDA name="f" bType="FLOAT32" />
+        </DAType>
+    </DataTypeTemplates>
+</SCL>
+`;

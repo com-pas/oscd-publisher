@@ -9,6 +9,7 @@ import {
   ActionList,
 } from '@openenergytools/filterable-lists/dist/ActionList.js';
 import { MdOutlinedButton } from '@scopedelement/material-web/button/MdOutlinedButton.js';
+import { MdCheckbox } from '@scopedelement/material-web/checkbox/MdCheckbox.js';
 
 import { newEditEvent } from '@openenergytools/open-scd-core';
 import { newLogEvent } from '@compas-oscd/core';
@@ -24,8 +25,27 @@ import { MdTextButton } from '@scopedelement/material-web/button/MdTextButton.js
 import { MdRadio } from '@scopedelement/material-web/radio/radio.js';
 import { MdList } from '@scopedelement/material-web/list/MdList.js';
 import { MdListItem } from '@scopedelement/material-web/list/MdListItem.js';
+import {
+  isFCDACompatibleWithIED,
+  queryLDevice,
+  queryLN,
+} from '../../foundation/utils/xml.js';
 import { pathIdentity, styles } from '../../foundation.js';
 import { DataSetElementEditor } from './data-set-element-editor.js';
+
+// eslint-disable-next-line no-shadow
+enum DataSetCopyStatus {
+  CanCopy = 'CanCopy',
+  IEDStructureIncompatible = 'IEDStructureIncompatible',
+  DataSetAlreadyExists = 'DataSetAlreadyExists',
+}
+
+interface DataSetCopyOption {
+  ied: Element;
+  dataSet: Element; // source DataSet being copied
+  status: DataSetCopyStatus;
+  selected: boolean;
+}
 
 export class DataSetEditor extends ScopedElementsMixin(LitElement) {
   static scopedElements = {
@@ -38,6 +58,7 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
     'md-radio': MdRadio,
     'md-list': MdList,
     'md-list-item': MdListItem,
+    'md-checkbox': MdCheckbox,
   };
 
   /** The document being edited as provided to plugins by [[`OpenSCD`]]. */
@@ -71,6 +92,15 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
 
   @query('#ldevice-select') lDeviceSelectDialog!: MdDialog;
 
+  @query('.dialog.copy-dataset') copyDataSetDialog!: MdDialog;
+
+  @state()
+  dataSetCopyOptions: DataSetCopyOption[] = [];
+
+  get hasCopyDataSetSelected(): boolean {
+    return this.dataSetCopyOptions.some(o => o.selected);
+  }
+
   /** Resets selected DataSet, if not existing in new doc 
   update(props: Map<string | number | symbol, unknown>): void {
     if (props.has('doc') && this.selectedDataSet) {
@@ -91,6 +121,141 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
     if (changedProps.has('searchValue') && this.selectionList) {
       this.selectionList.searchValue = this.searchValue;
     }
+  }
+
+  /**
+   * Finds the equivalent LN (or LN0) in the target IED that mirrors the
+   * LDevice+LN hierarchy where the given DataSet resides.
+   * Returns null when the target IED lacks the matching structure.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  private queryLnForDataSet(ied: Element, dataSet: Element): Element | null {
+    const lDevice = dataSet.closest('LDevice');
+    const lnOrLn0 = dataSet.parentElement;
+    if (!lnOrLn0 || !lDevice) return null;
+
+    const lDeviceInIed = queryLDevice(ied, lDevice.getAttribute('inst') ?? '');
+    if (!lDeviceInIed) return null;
+
+    return queryLN(
+      lDeviceInIed,
+      lnOrLn0.getAttribute('lnClass') ?? '',
+      lnOrLn0.getAttribute('inst') ?? '',
+      lnOrLn0.getAttribute('prefix')
+    );
+  }
+
+  /**
+   * Determines copy compatibility of a DataSet with a target IED.
+   * Checks: matching LDevice+LN path, no name conflict, all FCDAs valid.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  private getDataSetCopyStatus(
+    dataSet: Element,
+    otherIED: Element
+  ): DataSetCopyStatus {
+    const ln = this.queryLnForDataSet(otherIED, dataSet);
+    if (!ln) return DataSetCopyStatus.IEDStructureIncompatible;
+
+    if (ln.querySelector(`DataSet[name="${dataSet.getAttribute('name')}"]`))
+      return DataSetCopyStatus.DataSetAlreadyExists;
+
+    for (const fcda of Array.from(dataSet.querySelectorAll('FCDA'))) {
+      if (!isFCDACompatibleWithIED(fcda, otherIED))
+        return DataSetCopyStatus.IEDStructureIncompatible;
+    }
+
+    return DataSetCopyStatus.CanCopy;
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  private getCopyStatusText(status: DataSetCopyStatus): string {
+    switch (status) {
+      case DataSetCopyStatus.CanCopy:
+        return 'Copy possible';
+      case DataSetCopyStatus.IEDStructureIncompatible:
+        return 'IED structure incompatible';
+      case DataSetCopyStatus.DataSetAlreadyExists:
+        return 'DataSet already exists';
+      default:
+        return '';
+    }
+  }
+
+  private copyDataSet(): void {
+    const selectedOptions = this.dataSetCopyOptions.filter(o => o.selected);
+    if (selectedOptions.length === 0) {
+      this.copyDataSetDialog.close();
+      return;
+    }
+
+    // All options share the same source DataSet
+    const { dataSet } = selectedOptions[0];
+
+    const inserts = selectedOptions.map(o => {
+      const ln = this.queryLnForDataSet(o.ied, dataSet);
+      if (!ln) throw new Error('Target LN not found during DataSet copy');
+      return {
+        parent: ln,
+        node: dataSet.cloneNode(true) as Element,
+        reference: null,
+      };
+    });
+
+    this.dispatchEvent(
+      newEditEvent(inserts, {
+        title: `Copy DataSet to ${selectedOptions.length} IED${
+          selectedOptions.length > 1 ? 's' : ''
+        }`,
+      })
+    );
+
+    this.copyDataSetDialog.close();
+  }
+
+  private renderCopyDataSetDialog(): TemplateResult {
+    return html`<md-dialog
+      class="dialog copy-dataset"
+      @close=${() => {
+        this.dataSetCopyOptions = [];
+      }}
+    >
+      <div slot="content" class="copy-option-list">
+        ${this.dataSetCopyOptions.map(
+          option =>
+            html` <label class="copy-optin-row">
+              <div class="copy-option-description">
+                <div class="copy-option-description-ied">
+                  ${option.ied.getAttribute('name')}
+                </div>
+                <div class="copy-option-description-status">
+                  ${this.getCopyStatusText(option.status)}
+                </div>
+              </div>
+              <md-checkbox
+                ?checked=${option.selected}
+                @change=${() => {
+                  // eslint-disable-next-line no-param-reassign
+                  option.selected = !option.selected;
+                  this.requestUpdate();
+                }}
+                ?disabled=${option.status !== DataSetCopyStatus.CanCopy}
+              >
+              </md-checkbox>
+            </label>`
+        )}
+        <div class="copy-button">
+          <md-outlined-button @click=${() => this.copyDataSetDialog.close()}
+            >Close</md-outlined-button
+          >
+          <md-outlined-button
+            @click=${this.copyDataSet}
+            ?disabled=${!this.hasCopyDataSetSelected}
+            >Copy</md-outlined-button
+          >
+        </div>
+      </div>
+    </md-dialog>`;
   }
 
   private renderElementEditorContainer(): TemplateResult {
@@ -168,6 +333,27 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
           },
           actions: [
             {
+              icon: 'folder_copy',
+              callback: () => {
+                // Build copy options for all IEDs except the source IED
+                this.dataSetCopyOptions = Array.from(
+                  this.doc.querySelectorAll(':root > IED')
+                )
+                  .filter(otherIed => otherIed !== ied)
+                  .map(otherIed => {
+                    const status = this.getDataSetCopyStatus(dataSet, otherIed);
+                    return {
+                      ied: otherIed,
+                      dataSet,
+                      status,
+                      selected: status === DataSetCopyStatus.CanCopy,
+                    };
+                  });
+
+                this.copyDataSetDialog.show();
+              },
+            },
+            {
               icon: 'delete',
               callback: () => {
                 this.dispatchEvent(
@@ -186,12 +372,13 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
       }
     );
 
-    return html`<action-list
-      class="selectionlist"
-      .items=${items}
-      filterable
-      searchhelper="Filter DataSet's"
-    ></action-list>`;
+    return html` ${this.renderCopyDataSetDialog()}
+      <action-list
+        class="selectionlist"
+        .items=${items}
+        filterable
+        searchhelper="Filter DataSet's"
+      ></action-list>`;
   }
 
   private createDataSet(ied: Element, targetLDevice: Element): void {
@@ -306,6 +493,34 @@ export class DataSetEditor extends ScopedElementsMixin(LitElement) {
 
     md-icon-button[icon='playlist_add'] {
       pointer-events: all;
+    }
+
+    .copy-option-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .copy-button {
+      align-self: flex-end;
+    }
+
+    .copy-optin-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .copy-option-description {
+      min-width: 240px;
+    }
+
+    .copy-option-description-ied {
+      font-weight: bold;
+    }
+
+    .copy-option-description-status {
+      font-size: 0.8em;
     }
   `;
 }
