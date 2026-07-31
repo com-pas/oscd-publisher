@@ -10,6 +10,12 @@ import { DataSetEditor } from './editors/dataset/data-set-editor.js';
 import { GseControlEditor } from './editors/gsecontrol/gse-control-editor.js';
 import { ReportControlEditor } from './editors/report/report-control-editor.js';
 import { SampledValueControlEditor } from './editors/sampledvalue/sampled-value-control-editor.js';
+import {
+  applyPublisherIconFont,
+  loadPublisherIconFont,
+} from './foundation/icons/icon-font.js';
+
+loadPublisherIconFont();
 
 const EditorSelector = {
   Report: 'report-control-editor',
@@ -42,6 +48,11 @@ export default class PublisherPlugin extends ScopedElementsMixin(LitElement) {
 
   @state()
   private publisherType: PublisherType = 'GOOSE';
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    applyPublisherIconFont(this);
+  }
 
   private filterValues: Record<PublisherType, string> = {
     Report: '',
