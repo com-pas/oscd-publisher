@@ -45917,6 +45917,34 @@ __decorate([
     e$3('data-set-element-editor')
 ], SampledValueControlEditor.prototype, "dataSetElementEditor", void 0);
 
+// Self-hosts the Material Symbols Outlined font used by `md-icon`.
+const fontUrl = new URL(new URL('assets/material-symbols-outlined-69dca853.woff2', import.meta.url).href, import.meta.url)
+    .href;
+const styleElementId = 'oscd-publisher-icon-font';
+const publisherIconFontFamily = 'OSCD Publisher Icons';
+function loadPublisherIconFont() {
+    if (document.getElementById(styleElementId))
+        return;
+    const style = document.createElement('style');
+    style.id = styleElementId;
+    style.textContent = `
+    @font-face {
+      font-family: '${publisherIconFontFamily}';
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+      src: url('${fontUrl}') format('woff2');
+    }
+  `;
+    document.head.appendChild(style);
+}
+// Scopes `--md-icon-font` to a single element instead of `:root`, so it
+// can't clash with other plugins or the host.
+function applyPublisherIconFont(host) {
+    host.style.setProperty('--md-icon-font', `'${publisherIconFontFamily}', 'Material Symbols Outlined'`);
+}
+
+loadPublisherIconFont();
 const EditorSelector = {
     Report: 'report-control-editor',
     GOOSE: 'gse-control-editor',
@@ -45936,6 +45964,10 @@ class PublisherPlugin extends ScopedElementsMixin(r$4) {
             SampledValue: '',
             DataSet: '',
         };
+    }
+    connectedCallback() {
+        super.connectedCallback();
+        applyPublisherIconFont(this);
     }
     saveCurrentSearchValue() {
         var _a;

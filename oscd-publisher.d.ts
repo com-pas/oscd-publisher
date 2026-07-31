@@ -19,6 +19,7 @@ export default class PublisherPlugin extends PublisherPlugin_base {
     /** SCL change indicator */
     editCount: number;
     private publisherType;
+    connectedCallback(): void;
     private filterValues;
     private saveCurrentSearchValue;
     private handlePublisherTypeChange;
